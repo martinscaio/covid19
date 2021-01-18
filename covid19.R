@@ -7,7 +7,7 @@ library(knitr)
 library(kableExtra)
 
 
-
+usethis::use_github()
 # Dados ------------------------------------------------------------------------------------------------
 
 base_covid <- read.delim("https://raw.githubusercontent.com/seade-R/dados-covid-sp/master/data/dados_covid_sp.csv",
