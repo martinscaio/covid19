@@ -1,0 +1,12 @@
+name: covid_dashboard
+title: covid_dashboard
+username:
+account: caio-martins
+server: shinyapps.io
+hostUrl: https://api.shinyapps.io/v1
+appId: 3492535
+bundleId: 4118824
+url: https://caio-martins.shinyapps.io/covid_dashboard/
+when: 1611092486.73525
+asMultiple: FALSE
+asStatic: FALSE
