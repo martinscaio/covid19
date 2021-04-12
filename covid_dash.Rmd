@@ -1,5 +1,5 @@
 ---
-title: "Covid-19 em Botucatu e Região"
+title: "COVID-19 EM SÃO PAULO"
 output: 
   flexdashboard::flex_dashboard:
     orientation: rows
@@ -11,9 +11,11 @@ runtime: shiny
 
 
 ```{r global, include=FALSE}
-options(OutDec = ",")  
+ 
+# PACOTES
 
 library(flexdashboard)
+library(plyr)
 library(tidyverse)
 library(ggplot2)
 library(zoo)
@@ -21,58 +23,237 @@ library(ggthemes)
 library(knitr)
 library(kableExtra)
 library(shiny)
+library(plotly)
+
+# DADOS COVID-19 SP
+
+
 base_covid <- read.delim("https://raw.githubusercontent.com/seade-R/dados-covid-sp/master/data/dados_covid_sp.csv",
                          sep = ";")
 
-base_covid_sp <- base_covid %>% 
+
+base_covid_sp <- base_covid %>%
   mutate(nome_munic = iconv(nome_munic, from = "UTF-8", to = "latin1"),
          datahora = lubridate::as_date(datahora))
 
 
-graficos_covid <- base_covid_sp %>% filter(nome_munic == "Botucatu" | nome_munic == "Bauru")
+graficos_covid <- base_covid_sp %>% 
+  filter(nome_munic == "Botucatu" | nome_munic == "Bauru" |nome_munic == "São Paulo" | nome_munic == "Santos" |nome_munic == "Campinas")
+
+
+dados_mes<- graficos_covid %>% mutate(ano = lubridate::year(datahora))
+
+
+
+# DADOS VACINACAO SP
+
+
+pagina <- "https://www.saopaulo.sp.gov.br/planosp/simi/dados-abertos/"
+
+
+links <- pagina %>% 
+  xml2::read_html() %>% 
+  rvest::html_nodes("a") %>% rvest::html_attr('href')
+
+
+vacinacao <- links[64]
+
+
+vacinacao <- vacinacao %>% read.delim(sep = ";", encoding = "UTF-8")
+
+
+
+colnames(vacinacao) = c('MUNICIPIO', 'Dose', 'numero_vacinados')
+
+
+vacinacao <- vacinacao %>%
+  pivot_wider(names_from = Dose,
+              values_from = numero_vacinados) %>%
+  rename(PRIMEIRA_DOSE = `1° DOSE`,
+         SEGUNDA_DOSE = `2° DOSE`)
+
+
+
+vacinacao <- vacinacao %>% 
+  select(MUNICIPIO, 
+         PRIMEIRA_DOSE, 
+         SEGUNDA_DOSE) %>%
+  arrange(desc(PRIMEIRA_DOSE))
+
+
+
+
+# DADOS POPULAÇÃO SP CENSO 2010
+
+
+
+pop_sp_10 <- readRDS("pop_sp_10.RDS")
+
+
+colnames(pop_sp_10) = c('MUNICIPIO','Populacao')
+
+
+pop_sp_10 <- pop_sp_10  %>%  
+  mutate(MUNICIPIO = str_to_upper(MUNICIPIO, locale = "pt"))
+
+
+
+# JOIN DADOS VACINACAO E POPULACAO DOS MUNICIPIOS
+
+
+vacinacao <- left_join(vacinacao, pop_sp_10)
+
+
+vacinacao <- vacinacao %>% mutate(percentual_aplicado = round((PRIMEIRA_DOSE/Populacao),2))
+
+
 
 
 ```
+
+
+DADOS DIÁRIOS
+=========================================================== 
+
 
 Inputs {.sidebar}
 -----------------------------------------------------------------------
 
 \newline
 
-### COVID-19 - BOTUCATU E REGIÃO
+#### COVID-19 - ESTADO DE SÃO PAULO
 
-#### Neste arquivo apresento os dados da Covid-19 na cidade de Botucatu e Bauru.
+******
 
-#### O gráfico apresenta o número de CASOS DIÁRIOS da doença, exemplificado pelas barras em vermelho, e a média móvel dos últimos 7 dias em azul.
-\newline
-\newline
+ Neste Dashboard apresento os dados da Covid-19 para alguns municípios do Estado de São Paulo
 
-#### Selecione abaixo a cidade
+******
+
 ```{r}
-#selectInput("municipios",
- #           label = "Cidade: ",
-  #          choices = unique(graficos_covid$nome_munic),
-   #         selected = 1)
 
 selectInput("cidades",
             label = "Escolha a cidade que deseja visualizar: ",
-            choices = c("Bauru", "Botucatu"),
+            choices = sort(graficos_covid$nome_munic),
             selected = 1)
 
 ```
 
-\newline
+***
+
+ O primeiro gráfico apresenta o número de CASOS DIÁRIOS da doença, exemplificado pelas barras azuis, e a média móvel dos últimos 7 dias, exemplificado pela linha vermelha  
+
+***
+
+
+
+ O segundo gráfico apresenta o número de MORTES DIÁRIAS da doença, exemplificado pelas barras azuis, e a média móvel dos últimos 7 dias, exemplificado pela linha vermelha  
+
+***
 
 Os dados foram retirados do repositório do SEADE no Github:
 \newline
 https://github.com/seade-R/dados-covid-sp
 
+***
 
 \newline
 AUTOR: CAIO MARTINS
+\newline
+
+Para acesso completo ao código, acesse meu Github:
+\newline
+https://github.com/martinscaio
 
 
-Row{data-height=320}
+
+Row
+-------------------------------------
+
+###
+```{r}
+
+
+renderValueBox({
+
+  # Casos Confirmados
+
+  casos_confirmados <- graficos_covid %>% filter(nome_munic == input$cidades) %>%
+    summarize(casos = sum(casos_novos))
+
+  casos_confirmados1 = paste(format(casos_confirmados, big.mark = "."), "", sep = " ")
+
+
+  valueBox("CASOS TOTAIS CONFIRMADOS", value = casos_confirmados1, color = "Red")
+
+
+  })
+
+
+```
+
+
+###
+
+```{r}
+
+renderValueBox({
+
+  # Mortes Confirmadas
+
+  obitos_confirmados <- graficos_covid %>% filter(nome_munic == input$cidades) %>%
+    summarize(casos = sum(obitos_novos))
+
+  obitos_confirmados1 = paste(format(obitos_confirmados, big.mark = "."), "", sep = " ")
+
+  valueBox("MORTES TOTAIS CONFIRMADAS", value = obitos_confirmados1, color = "Black")
+
+
+  })
+
+
+```
+
+
+###
+```{r}
+
+renderValueBox({
+
+  # Casos Confirmados Hoje
+
+  casos_hoje <- graficos_covid %>% filter(nome_munic == input$cidades) %>% slice_tail(n = 1) %>% select(casos_novos)
+
+
+  casos_hoje1 = paste(format(casos_hoje, big.mark = "."), "", sep = " ")
+
+  valueBox("CASOS CONFIRMADOS HOJE", value = casos_hoje1, color = "Green")
+
+
+  })
+
+```
+
+###
+```{r}
+
+renderValueBox({
+
+  # Casos Confirmados Hoje
+
+  obitos_hoje <- graficos_covid %>% filter(nome_munic == input$cidades) %>% slice_tail(n = 1) %>% select(obitos_novos)
+
+
+  obitos_hoje1 = paste(format(obitos_hoje, big.mark = "."), "", sep = " ")
+
+  valueBox("MORTES CONFIRMADAS HOJE", icon = "fa-death", value = obitos_hoje1, color = "Blue")
+
+
+  })
+
+```
+
+
+Row
 -------------------------------------
     
 ### NÚMERO DE CASOS DIÁRIOS
@@ -81,83 +262,229 @@ Row{data-height=320}
 
 renderPlot({
   graficos_covid %>% filter(nome_munic == input$cidades) %>%
-  mutate(media_movel = round(rollmeanr(casos_novos, 7, fill = NA))) %>% 
-  ggplot(aes(datahora, casos_novos)) + 
-  geom_col(aes(colour = "White"), width = 0.8, fill = "#DC143C")+
-  geom_line(aes(datahora, media_movel), colour = "Blue", size = 1.2)+
+  mutate(media_movel = round(rollmeanr(casos_novos, 7, fill = NA))) %>%
+  ggplot(aes(datahora, casos_novos)) +
+  geom_col(aes(), width = 0.7, fill = "#4d94ff")+
+  geom_line(aes(datahora, media_movel), colour = "#e60000", size = 1.2)+
   scale_x_date(breaks = "15 days", date_labels = "%b %d")+
   theme_hc()+
   xlab("")+
   ylab("")+
-  #ggtitle("Casos Diários de Covid-19 na Cidade de Botucatu (SP)")+
-  #labs(caption = "AUTOR: CAIO MARTINS", colour = "Blue")+
-  theme(axis.text.x = element_text(angle = 0, size = 14.0))+
-        #plot.title = element_text(hjust = 0.5),
-        #plot.caption = element_text(hjust = 0.5))+
-  guides(fill = FALSE, color = FALSE, linetype = FALSE, shape = FALSE)
+  theme(axis.text.x = element_text(angle = 55, size = 13.0, face = "bold", vjust = 0.59),
+        axis.text.y = element_text(size = 14.0))+
+  guides(fill = FALSE, color = FALSE, linetype = FALSE, shape = FALSE)+
+  scale_y_continuous(breaks = scales::pretty_breaks())
+
 
 })
 
 
 
 ```
-   
-Row{}
+
+
+
+Row
 -------------------------------------
+
+### NÚMERO DE MORTES DIÁRIAS
+```{r}
+
+### NÚMERO DE MORTES DIÁRIOS
+    
+renderPlot({
+  graficos_covid %>% filter(nome_munic == input$cidades) %>%
+  mutate(media_movel = round(rollmeanr(obitos_novos, 7, fill = NA))) %>%
+  ggplot(aes(datahora, obitos_novos))+
+  geom_col(aes(),fill = "#4d94ff",width = 0.7, size = 0.6)+
+  geom_line(aes(datahora, media_movel), colour = "#e60000", size = 1.2)+
+  scale_x_date(breaks = "15 days", date_labels = "%b %d")+
+  theme_hc()+
+  xlab("")+
+  ylab("")+
+  theme(axis.text.x = element_text(angle = 55, size = 13.0, face = "bold", vjust = 0.59),
+        axis.text.y = element_text(size = 14.0))+
+  guides(fill = FALSE, color = FALSE, linetype = FALSE, shape = FALSE)+
+  scale_y_continuous(breaks = scales::pretty_breaks())
+
+
+
+})
+
+```
+
+
+DADOS AGREGADOS POR MES
+============================================================================
+
+
+Inputs {.sidebar}
+-----------------------------------------------------------------------
+
+\newline
+
+#### COVID-19 - ESTADO DE SÃO PAULO
+\newline
+***
+
+ Neste Dashboard apresento os dados da Covid-19 para alguns municípios do Estado de São Paulo.
+\newline
+
+***
+
+```{r}
+
+selectInput("municipios",
+            label = "Escolha a cidade que deseja visualizar: ",
+            choices = sort(graficos_covid$nome_munic),
+            selected = 1)
+
+```
+
+***
+
+ O primeiro gráfico apresenta o número de CASOS de COVID-19 agregado por mês.
+\newline
+
+***
+
+ O segundo gráfico apresenta o número de MORTES por COVID-19 agregado por mês.
+\newline
+
+***
+\newline
+
+Os dados foram retirados do repositório do SEADE no Github:
+\newline
+https://github.com/seade-R/dados-covid-sp
+
+***
+
+\newline
+AUTOR: CAIO MARTINS
+\newline
+
+Para acesso completo ao código, acesse meu Github:
+\newline
+https://github.com/martinscaio
+
+
+Row
+-------------------------------------
+
+###
+```{r}
+
+
+renderValueBox({
+
+  # Casos Confirmados
+
+  casos_confirmados <- graficos_covid %>% filter(nome_munic == input$municipios) %>%
+    summarize(casos = sum(casos_novos))
+
+  casos_confirmados1 = paste(format(casos_confirmados, big.mark = "."), "", sep = " ")
+
+
+  valueBox("CASOS TOTAIS CONFIRMADOS", value = casos_confirmados1, color = "Red")
+
+
+  })
+
+
+```
+
+
+###
+
+```{r}
+
+renderValueBox({
+
+  # Mortes Confirmadas
+
+  obitos_confirmados <- graficos_covid %>% filter(nome_munic == input$municipios) %>%
+    summarize(casos = sum(obitos_novos))
+
+  obitos_confirmados1 = paste(format(obitos_confirmados, big.mark = "."), "", sep = " ")
+
+  valueBox("MORTES TOTAIS CONFIRMADAS", value = obitos_confirmados1, color = "Black")
+
+
+  })
+
+
+```
+
+
+###
+```{r}
+
+renderValueBox({
+
+  # Casos Confirmados Hoje
+
+  casos_hoje <- graficos_covid %>% filter(nome_munic == input$municipios) %>% slice_tail(n = 1) %>% select(casos_novos)
+
+
+  casos_hoje1 = paste(format(casos_hoje, big.mark = "."), "", sep = " ")
+
+  valueBox("CASOS CONFIRMADOS HOJE", icon = "fa-death", value = casos_hoje1, color = "Green")
+
+
+  })
+
+```
+
+###
+```{r}
+
+renderValueBox({
+
+  # Casos Confirmados Hoje
+
+  obitos_hoje <- graficos_covid %>% filter(nome_munic == input$municipios) %>% slice_tail(n = 1) %>% select(obitos_novos)
+
+
+  obitos_hoje1 = paste(format(obitos_hoje, big.mark = "."), "", sep = " ")
+
+  valueBox("MORTES CONFIRMADAS HOJE", value = obitos_hoje1, color = "Blue")
+
+
+  })
+
+```
+
+
+
+Row
+----------------------------------------------------------------------------
     
 ### NÚMERO DE CASOS POR MÊS
     
 ```{r}
 
-  casos_botucatu <- graficos_covid %>% filter(nome_munic == "Botucatu") %>% 
-  mutate(mes = ifelse(mes < 2, 13, mes)) %>% 
-  group_by(mes) %>% 
-  summarize(soma = sum(casos_novos)) %>% 
-  arrange(mes) %>% 
-  rename(Nº_CASOS = soma) %>% 
-  mutate(mes = case_when(mes == 13 ~ "Janeiro-2021",
-                         mes == 2 ~ "Fevereiro_2020",
-                         mes == 3 ~ "Março_2020",
-                         mes == 4 ~ "Abril_2020",
-                         mes == 5 ~ "Maio_2020",
-                         mes == 6 ~ "Junho_2020",
-                         mes == 7 ~ "Julho_2020",
-                         mes == 8 ~ "Agosto_2020",
-                         mes == 9 ~ "Setembro_2020",
-                         mes == 10 ~ "Outubro_2020",
-                         mes == 11~ "Novembro_2020",
-                         mes == 12 ~ "Dezembro_2020")) %>% 
-  kable("html", escape = F) %>%
-  kable_styling(bootstrap_options = c("striped", "condensed","hover")) %>%
-  scroll_box()
+renderPlot({
 
-casos_bauru <- graficos_covid %>% filter(nome_munic == "Bauru") %>% 
-  mutate(mes = ifelse(mes < 2, 13, mes)) %>% 
-  group_by(mes) %>% 
-  summarize(soma = sum(casos_novos)) %>% 
-  arrange(mes) %>% 
-  rename(Nº_CASOS = soma) %>% 
-  mutate(mes = case_when(mes == 13 ~ "Janeiro-2021",
-                         mes == 2 ~ "Fevereiro_2020",
-                         mes == 3 ~ "Março_2020",
-                         mes == 4 ~ "Abril_2020",
-                         mes == 5 ~ "Maio_2020",
-                         mes == 6 ~ "Junho_2020",
-                         mes == 7 ~ "Julho_2020",
-                         mes == 8 ~ "Agosto_2020",
-                         mes == 9 ~ "Setembro_2020",
-                         mes == 10 ~ "Outubro_2020",
-                         mes == 11~ "Novembro_2020",
-                         mes == 12 ~ "Dezembro_2020")) %>% 
-  kable("html", escape = F) %>%
-  kable_styling(bootstrap_options = c("striped", "condensed","hover")) %>%
-  scroll_box()
+  dados_mes %>%
+  filter(nome_munic == input$municipios) %>%
+  separate(datahora, "mes_ano", 7) %>%
+  group_by(mes_ano, ano) %>%
+  summarize(casos_mes = sum(casos_novos)) %>%
+  mutate(mes_ano = lubridate::as_date(as.yearmon(mes_ano)),
+         ano = as_factor(ano)) %>%
+  ggplot(aes(mes_ano, casos_mes, fill = ano))+
+  geom_col()+
+  xlab("")+
+  ylab("")+
+  theme_hc()+
+  scale_fill_manual(name = "ano", values = c("#ff4d4d","#668cff"))+
+  theme(axis.text.x = element_text(size = 11.5, face = "bold"),
+        axis.text.y = element_text(size = 15.0))+
+  scale_y_continuous(breaks = scales::pretty_breaks())+
+  scale_x_date(date_labels = "%b", breaks = "1 month")
 
 
-
-renderUI( {
-  data <- ifelse(input$cidades %in% c("Bauru"), casos_bauru, casos_botucatu)
-  HTML(data)
 })
 
 
@@ -169,59 +496,105 @@ renderUI( {
 ```{r}
 
 
- obitos_botucatu<- graficos_covid %>% filter(nome_munic == "Botucatu") %>% 
-  mutate(mes = ifelse(mes < 2, 13, mes)) %>% 
-  group_by(mes) %>% 
-  summarize(soma = sum(obitos_novos)) %>% 
-  arrange(mes) %>% 
-  rename(Nº_OBITOS = soma) %>% 
-  mutate(mes = case_when(mes == 13 ~ "Janeiro-2021",
-                         mes == 2 ~ "Fevereiro_2020",
-                         mes == 3 ~ "Março_2020",
-                         mes == 4 ~ "Abril_2020",
-                         mes == 5 ~ "Maio_2020",
-                         mes == 6 ~ "Junho_2020",
-                         mes == 7 ~ "Julho_2020",
-                         mes == 8 ~ "Agosto_2020",
-                         mes == 9 ~ "Setembro_2020",
-                         mes == 10 ~ "Outubro_2020",
-                         mes == 11~ "Novembro_2020",
-                         mes == 12 ~ "Dezembro_2020")) %>% 
-  kable("html", escape = F) %>%
-  kable_styling(bootstrap_options = c("striped", "condensed","hover")) %>%
-  scroll_box()
+renderPlot({
+
+  dados_mes %>%
+  filter(nome_munic == input$municipios) %>%
+  separate(datahora, "mes_ano", 7) %>%
+  group_by(mes_ano, ano) %>%
+  summarize(obitos_mes = sum(obitos_novos)) %>%
+  mutate(mes_ano = lubridate::as_date(as.yearmon(mes_ano)),
+         ano = as_factor(ano)) %>%
+  ggplot(aes(mes_ano, obitos_mes, fill = ano))+
+  geom_col()+
+  xlab("")+
+  ylab("")+
+  theme_hc()+
+  scale_fill_manual(name = "ano", values = c("#ff4d4d","#668cff"))+
+  theme(axis.text.x = element_text(size = 11.5, face = "bold"),
+        axis.text.y = element_text(size = 15.0))+
+  scale_y_continuous(breaks = scales::pretty_breaks())+
+  scale_x_date(date_labels = "%b", breaks = "1 month")
 
 
-obitos_bauru<- graficos_covid %>% filter(nome_munic == "Bauru") %>% 
-  mutate(mes = ifelse(mes < 2, 13, mes)) %>% 
-  group_by(mes) %>% 
-  summarize(soma = sum(obitos_novos)) %>% 
-  arrange(mes) %>% 
-  rename(Nº_OBITOS = soma) %>% 
-  mutate(mes = case_when(mes == 13 ~ "Janeiro-2021",
-                         mes == 2 ~ "Fevereiro_2020",
-                         mes == 3 ~ "Março_2020",
-                         mes == 4 ~ "Abril_2020",
-                         mes == 5 ~ "Maio_2020",
-                         mes == 6 ~ "Junho_2020",
-                         mes == 7 ~ "Julho_2020",
-                         mes == 8 ~ "Agosto_2020",
-                         mes == 9 ~ "Setembro_2020",
-                         mes == 10 ~ "Outubro_2020",
-                         mes == 11~ "Novembro_2020",
-                         mes == 12 ~ "Dezembro_2020")) %>% 
-  kable("html", escape = F) %>%
-  kable_styling(bootstrap_options = c("striped", "condensed","hover")) %>%
-  scroll_box()
 
-
-renderUI( {
-  data <- ifelse(input$cidades %in% c("Bauru"), obitos_bauru, obitos_botucatu)
-  HTML(data)
-})  
- 
-
+})
 
 
 
 ```
+
+
+VACINAÇÃO
+============================================================================
+
+
+Inputs {.sidebar}
+-----------------------------------------------------------------------
+
+\newline
+
+#### COVID-19 - ESTADO DE SÃO PAULO
+\newline
+***
+
+ Nesta seção apresento alguns dados referentes à Vacinação no Estado de São Paulo.
+\newline
+
+
+***
+
+ A tabela ao lado apresenta o número de **Vacinas** (contra a Covid-19) aplicadas nos Municípios do Estado de São Paulo.
+ 
+***
+ Há também o percentual da população que já foi vacinado com a "PRIMEIRA_DOSE".
+ 
+***
+
+ **LEMBRETE**: Foi utilizado a população do Censo de 2010!! Certamente a população nesses municípios é maior em 2021!!
+\newline
+
+***
+
+
+\newline
+
+Os dados foram retirados da página oficial do Governo do Estado de SP:
+\newline
+https://www.saopaulo.sp.gov.br/planosp/simi/dados-abertos/
+
+***
+
+\newline
+AUTOR: CAIO MARTINS
+\newline
+
+Para acesso completo ao código, acesse meu Github:
+\newline
+https://github.com/martinscaio
+
+
+
+
+Row
+-------------------------------------
+
+### **VACINAÇÃO NOS MUNICÍPIOS DE SÃO PAULO**
+
+```{r}
+
+ vacinacao %>% 
+  select(MUNICIPIO ,
+         PRIMEIRA_DOSE,
+         SEGUNDA_DOSE,
+         Populacao,
+         percentual_aplicado) %>%
+  mutate(PRIMEIRA_DOSE = paste(format(PRIMEIRA_DOSE,big.mark = ".", decimal.mark = ","), "", sep = " "),
+         SEGUNDA_DOSE = paste(format(SEGUNDA_DOSE,big.mark = ".", decimal.mark = ","), "", sep = " " ),
+         Populacao = paste(format(Populacao,big.mark = ".", decimal.mark = ","), "", sep = " " ),
+         percentual_aplicado = scales::percent(percentual_aplicado,big.mark = ",", sufix = " %", accuracy = 1L )) %>% 
+  kbl() %>%
+  kable_styling(bootstrap_options = c("striped", "hover", "condensed", "responsive"))
+
+```
+
