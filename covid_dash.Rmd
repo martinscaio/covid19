@@ -266,7 +266,7 @@ renderPlot({
   ggplot(aes(datahora, casos_novos)) +
   geom_col(aes(), width = 0.7, fill = "#4d94ff")+
   geom_line(aes(datahora, media_movel), colour = "#e60000", size = 1.2)+
-  scale_x_date(breaks = "15 days", date_labels = "%b %d")+
+  scale_x_date(breaks = "30 days", date_labels = "%b %d")+
   theme_hc()+
   xlab("")+
   ylab("")+
@@ -298,7 +298,7 @@ renderPlot({
   ggplot(aes(datahora, obitos_novos))+
   geom_col(aes(),fill = "#4d94ff",width = 0.7, size = 0.6)+
   geom_line(aes(datahora, media_movel), colour = "#e60000", size = 1.2)+
-  scale_x_date(breaks = "15 days", date_labels = "%b %d")+
+  scale_x_date(breaks = "30 days", date_labels = "%b %d")+
   theme_hc()+
   xlab("")+
   ylab("")+
@@ -482,7 +482,7 @@ renderPlot({
   theme(axis.text.x = element_text(size = 11.5, face = "bold"),
         axis.text.y = element_text(size = 15.0))+
   scale_y_continuous(breaks = scales::pretty_breaks())+
-  scale_x_date(date_labels = "%b", breaks = "1 month")
+  scale_x_date(date_labels = "%b", breaks = "2 month")
 
 
 })
@@ -514,7 +514,7 @@ renderPlot({
   theme(axis.text.x = element_text(size = 11.5, face = "bold"),
         axis.text.y = element_text(size = 15.0))+
   scale_y_continuous(breaks = scales::pretty_breaks())+
-  scale_x_date(date_labels = "%b", breaks = "1 month")
+  scale_x_date(date_labels = "%b", breaks = "2 month")
 
 
 

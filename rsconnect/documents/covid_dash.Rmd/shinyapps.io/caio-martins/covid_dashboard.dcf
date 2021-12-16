@@ -5,8 +5,9 @@ account: caio-martins
 server: shinyapps.io
 hostUrl: https://api.shinyapps.io/v1
 appId: 3492535
-bundleId: 4434435
+bundleId: 5382157
 url: https://caio-martins.shinyapps.io/covid_dashboard/
-when: 1617649002.32568
+when: 1639697838.72406
+lastSyncTime: 1639697838.72406
 asMultiple: FALSE
 asStatic: FALSE
