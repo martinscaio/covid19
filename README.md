@@ -1,7 +1,7 @@
 
 # Covid-19 Dashboard with Shiny and Flexdashboard
 
-Para acessar o [Dashboard](https://caio-martins.shinyapps.io/covid_dashboard/)
+Acesse o [Dashboard](https://caio-martins.shinyapps.io/covid_dashboard/)
 
 Repositório para o Dashboard feito com Shiny e Flexdashboard para analisar dados da Covid-19 em alguns municipios do Estado de São Paulo.
 
