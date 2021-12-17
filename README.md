@@ -3,13 +3,10 @@
 
 Acesse o [Dashboard](https://caio-martins.shinyapps.io/covid_dashboard/)
 
-Repositório para o Dashboard feito com Shiny e Flexdashboard para analisar dados da Covid-19 em alguns municipios do Estado de São Paulo.
+Dashboard feito com Shiny & Flexdashboard com os dados da Covid-19 em alguns municipios do Estado de São Paulo.
 
 
-A ideia deste projeto era aprender Shiny/criar um dashboard em R. Por esse motivo o dashboard não abarca todos os municipios do Estado de São Paulo. 
-
-Apesar de utilizar dados reais disponibilizados pelo SEADE, o dashboard não se propõe a servir como uma plataforma de acompanhamento da evolução da covid no estado de São Paulo
-
+A ideia deste projeto era aprender Shiny/criar um dashboard em R. Por esse motivo o dashboard não cobre todos os municipios do Estado de São Paulo. 
 
 
 ### O dashboard possui 3 seções: Dados diários, Dados agregados por mês e Vacinação.
